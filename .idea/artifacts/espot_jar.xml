@@ -3,7 +3,6 @@
     <output-path>$PROJECT_DIR$/out/artifacts/espot_jar</output-path>
     <root id="archive" name="espot.jar">
       <element id="module-output" name="espot" />
-      <element id="extracted-dir" path="$PROJECT_DIR$/lib/commons-io-2.4.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>
