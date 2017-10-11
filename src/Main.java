@@ -1,9 +1,10 @@
 import com.sun.istack.internal.Nullable;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -28,9 +29,10 @@ public class Main {
     private static boolean printAbsoluteRootEnabled;
     private static boolean printFilesCountEnabled;
     private static boolean foldersFirst;
-    private static FileWriter writer;
+    private static BufferedWriter bufferedWriter;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        new ProgressWindow().setVisible(true);
         initializeProperties();
         List<Boolean> ancestorTails = makeAncestorTailsList();
         printRoot();
@@ -44,14 +46,15 @@ public class Main {
         }
         printFilesCount();
         closeWriter();
+        System.exit(0);
     }
 
     private static void initializeProperties() {
         try {
             Properties properties = new Properties();
             properties.load(new FileInputStream("app-config.properties"));
-            String resultFilePath = properties.getProperty("result-file-path");
-            writer = new FileWriter(resultFilePath, false);
+            Path resultPath = Paths.get(properties.getProperty("result-file-path"));
+            bufferedWriter = Files.newBufferedWriter(resultPath, Charset.forName("UTF-8"));
             root = properties.getProperty("root");
             filesTypeRegex = properties.getProperty("files-type-regex") + ".*";
             filesTypeLabel = properties.getProperty("files-type-label") + "s";
@@ -145,7 +148,7 @@ public class Main {
 
     private static void write(String string) {
         try {
-            writer.write(string);
+            bufferedWriter.write(string);
             System.out.print(string);
         } catch (Exception e) {
             e.printStackTrace();
@@ -189,7 +192,7 @@ public class Main {
 
     private static void closeWriter() {
         try {
-            writer.close();
+            bufferedWriter.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
