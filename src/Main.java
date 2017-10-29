@@ -1,5 +1,3 @@
-import com.sun.istack.internal.Nullable;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.stream.Stream;
 
 public class Main {
 
@@ -26,26 +23,26 @@ public class Main {
     private static String root;
     private static String filesTypeLabel;
     private static String filesTypeRegex;
-    private static boolean printAbsoluteRootEnabled;
-    private static boolean printFilesCountEnabled;
+    private static boolean absoluteRootPrinted;
+    private static boolean filesCountPrinted;
     private static boolean foldersFirst;
     private static BufferedWriter bufferedWriter;
 
     public static void main(String[] args) throws Exception {
         new ProgressWindow().setVisible(true);
         initializeProperties();
-        List<Boolean> ancestorTails = makeAncestorTailsList();
+        List<Boolean> ancestorsBranch = makeAncestorsBranchList();
         printRoot();
         String[] rootContents = new File(root).list();
-        if (rootContents == null || rootContents.length < 1) {
-            write(String.format("%s%n   %s %s%n", root, "└─── ", "Empty Directory..."));
+        if (rootContents == null || rootContents.length == 0) {
+            write(String.format("%s%s %s%n", TAB, "└─── ", ".: Empty :."));
         } else if (foldersFirst) {
-            listFoldersFirst(root, 1, ancestorTails);
+            listDirectoriesFirst(root, 1, ancestorsBranch);
         } else {
-            listAlphabetically(root, 1, ancestorTails);
+            listAlphabetically(root, 1, ancestorsBranch);
         }
         printFilesCount();
-        closeWriter();
+        bufferedWriter.close();
         System.exit(0);
     }
 
@@ -58,22 +55,22 @@ public class Main {
             root = properties.getProperty("root");
             filesTypeRegex = properties.getProperty("files-type-regex") + ".*";
             filesTypeLabel = properties.getProperty("files-type-label") + "s";
-            printAbsoluteRootEnabled = Boolean.valueOf(properties.getProperty("print-absolute-root"));
-            printFilesCountEnabled = Boolean.valueOf(properties.getProperty("print-files-count"));
+            absoluteRootPrinted = Boolean.valueOf(properties.getProperty("print-absolute-root"));
+            filesCountPrinted = Boolean.valueOf(properties.getProperty("print-files-count"));
             foldersFirst = Boolean.valueOf(properties.getProperty("folders-first"));
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static List<Boolean> makeAncestorTailsList() {
+    private static List<Boolean> makeAncestorsBranchList() {
         List<Boolean> list = new ArrayList<>();
         list.add(true);
         return list;
     }
 
     private static void printRoot() {
-        if (printAbsoluteRootEnabled) {
+        if (absoluteRootPrinted) {
             write(String.format("%s%n", root));
         } else {
             int start = root.lastIndexOf('\\');
@@ -85,45 +82,43 @@ public class Main {
         }
     }
 
-    private static void listFoldersFirst(String path, int depth, List<Boolean> ancestorsTails) {
-        Iterator<Path> directoryIterator = getDirectoryIterator(path);
-        Iterator<Path> fileIterator = getFileIterator(path);
-        if (directoryIterator != null && fileIterator != null) {
-            listDirectories(depth, ancestorsTails, directoryIterator, fileIterator);
-            listFiles(depth, ancestorsTails, fileIterator);
+    private static void listDirectoriesFirst(String path, int depth, List<Boolean> ancestorsBranch) {
+        try {
+            Iterator<Path> directoryIterator = getIterator(path, Filter.DIRECTORY);
+            Iterator<Path> fileIterator = getIterator(path, Filter.FILE);
+            listDirectories(depth, ancestorsBranch, directoryIterator, fileIterator);
+            listFiles(depth, ancestorsBranch, fileIterator);
+        } catch (Exception ignored) {
         }
     }
 
-    private static void listDirectories(int depth, List<Boolean> ancestorsTails, Iterator<Path> directoryIterator, Iterator<Path> fileIterator) {
+    private static void listDirectories(int depth, List<Boolean> ancestorsBranch, Iterator<Path> directoryIterator, Iterator<Path> fileIterator) {
         while (directoryIterator.hasNext()) {
             Path nextEntry = directoryIterator.next();
-            write(TAB); // indent the begging of all of the lines
-            indent(depth, ancestorsTails);
+            indent(depth, ancestorsBranch);
             write(directoryIterator.hasNext() || fileIterator.hasNext() ? CONTINUED_BRANCH : END_BRANCH);
             write(String.format("%s %s%n", FOLDER_CHAR, nextEntry.getFileName()));
-            setAncestorTail(depth, ancestorsTails, directoryIterator.hasNext() || fileIterator.hasNext());
-            listFoldersFirst(nextEntry.toString(), depth + 1, ancestorsTails);
+            setAncestorBranch(depth, ancestorsBranch, directoryIterator.hasNext() || fileIterator.hasNext());
+            listDirectoriesFirst(nextEntry.toString(), depth + 1, ancestorsBranch);
         }
     }
 
-    private static void listFiles(int depth, List<Boolean> ancestorsTails, Iterator<Path> fileIterator) {
+    private static void listFiles(int depth, List<Boolean> ancestorsBranch, Iterator<Path> fileIterator) {
         while (fileIterator.hasNext()) {
             Path nextEntry = fileIterator.next();
-            write(TAB); // indent the begging of all of the lines
-            indent(depth, ancestorsTails);
+            indent(depth, ancestorsBranch);
             write(fileIterator.hasNext() ? CONTINUED_BRANCH : END_BRANCH);
             incrementFileCount(nextEntry);
             write(String.format("%s%n", nextEntry.getFileName()));
-            setAncestorTail(depth, ancestorsTails, fileIterator.hasNext());
+            setAncestorBranch(depth, ancestorsBranch, fileIterator.hasNext());
         }
     }
 
-    private static void listAlphabetically(String path, int depth, List<Boolean> ancestorsTails) {
-        Iterator<Path> iterator = getGenericIterator(path);
-        if (iterator != null) {
+    private static void listAlphabetically(String path, int depth, List<Boolean> ancestorsBranch) {
+        try {
+            Iterator<Path> iterator = getIterator(path, Filter.GENERIC);
             while (iterator.hasNext()) {
-                write(TAB); // indent begging of all of the lines
-                indent(depth, ancestorsTails);
+                indent(depth, ancestorsBranch);
                 Path nextEntry = iterator.next();
                 write(iterator.hasNext() ? CONTINUED_BRANCH : END_BRANCH);
                 if (Files.isRegularFile(nextEntry)) {
@@ -131,18 +126,19 @@ public class Main {
                     write(String.format("%s%n", nextEntry.getFileName()));
                 } else if (Files.isDirectory(nextEntry)) {
                     write(String.format("%s %s%n", FOLDER_CHAR, nextEntry.getFileName()));
-                    setAncestorTail(depth, ancestorsTails, iterator.hasNext());
-                    listAlphabetically(nextEntry.toString(), depth + 1, ancestorsTails);
+                    setAncestorBranch(depth, ancestorsBranch, iterator.hasNext());
+                    listAlphabetically(nextEntry.toString(), depth + 1, ancestorsBranch);
                 }
             }
+        } catch (Exception ignored) {
         }
     }
 
-    private static void setAncestorTail(int depth, List<Boolean> ancestorsTails, boolean moreElementsAvailable) {
-        if (ancestorsTails.size() <= depth) {
-            ancestorsTails.add(moreElementsAvailable);
+    private static void setAncestorBranch(int depth, List<Boolean> ancestorsBranch, boolean moreElementsAvailable) {
+        if (ancestorsBranch.size() <= depth) {
+            ancestorsBranch.add(moreElementsAvailable);
         } else {
-            ancestorsTails.set(depth, moreElementsAvailable);
+            ancestorsBranch.set(depth, moreElementsAvailable);
         }
     }
 
@@ -156,18 +152,20 @@ public class Main {
     }
 
     private static void printFilesCount() {
-        if (printFilesCountEnabled) {
-            write(String.format("%n---------------------%n%nNumber of %s: %d%n", filesTypeLabel, filesCount));
+        if (filesCountPrinted) {
+            write(String.format("%n-----------------------%n%n"));
+            write(String.format("Number of %s: %d%n", filesTypeLabel, filesCount));
         }
     }
 
-    private static void indent(int depth, List<Boolean> ancestorsTails) {
+    private static void indent(int depth, List<Boolean> ancestorsBranch) {
+        write(TAB); // indent begging of all of the lines
         boolean shouldInsertTab = false;
         for (int i = 0; i < (depth - 1) * 2; i++) {
             if (shouldInsertTab) {
                 write(TAB);
             } else {
-                if (!ancestorsTails.get(i / 2 + 1)) {
+                if (!ancestorsBranch.get(i / 2 + 1)) {
                     write(" ");
                 } else {
                     write("│");
@@ -177,9 +175,25 @@ public class Main {
         }
     }
 
+    private static Iterator<Path> getIterator(String path, Filter filter) throws Exception {
+        return Files.list(Paths.get(path)).filter(file -> {
+            try {
+                if (filter == Filter.DIRECTORY) {
+                    return Files.isReadable(file) && !Files.isHidden(file) && Files.isDirectory(file);
+                } else if (filter == Filter.FILE) {
+                    return Files.isReadable(file) && !Files.isHidden(file) && Files.isRegularFile(file);
+                } else { // filter == Filter.GENERIC
+                    return Files.isReadable(file) && !Files.isHidden(file);
+                }
+            } catch (Exception e) {
+                return false; // do not include this file
+            }
+        }).iterator();
+    }
+
     private static void incrementFileCount(Path nextEntry) {
         try {
-            if (printFilesCountEnabled) {
+            if (filesCountPrinted) {
                 String fileType = Files.probeContentType(nextEntry);
                 if (fileType != null && fileType.matches(filesTypeRegex)) {
                     filesCount++;
@@ -189,59 +203,4 @@ public class Main {
             e.printStackTrace();
         }
     }
-
-    private static void closeWriter() {
-        try {
-            bufferedWriter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static Iterator<Path> getGenericIterator(@Nullable String path) {
-        try {
-            Stream<Path> stream = Files.list(Paths.get(path)).filter(file -> {
-                try {
-                    return Files.isReadable(file) && !Files.isHidden(file);
-                } catch (Exception e) {
-                    return false;
-                }
-            });
-            return stream.iterator();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static Iterator<Path> getDirectoryIterator(@Nullable String path) {
-        try {
-            Stream<Path> stream = Files.list(Paths.get(path)).filter(file -> {
-                try {
-                    return Files.isReadable(file) && !Files.isHidden(file) && Files.isDirectory(file);
-                } catch (Exception e) {
-                    return false;
-                }
-            });
-            return stream.iterator();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static Iterator<Path> getFileIterator(@Nullable String path) {
-        try {
-            Stream<Path> stream = Files.list(Paths.get(path)).filter(entry -> {
-                try {
-                    return Files.isReadable(entry) && !Files.isHidden(entry) && Files.isRegularFile(entry);
-                } catch (Exception e) {
-                    return false;
-                }
-            });
-            return stream.iterator();
-        } catch (Exception e) {
-            return null;
-        }
-    }
 }
-
-
