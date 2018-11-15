@@ -5,6 +5,8 @@
 [![Scrutinizer](https://img.shields.io/scrutinizer/g/mahozad/espot.svg)](https://scrutinizer-ci.com/g/mahozad/espot/)
 [![license](https://img.shields.io/github/license/mahozad/espot.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 # Espot
-**Espot** creates tree-like structure of files and directories for the given path like `tree` command of cmd.
+**Espot** creates tree-like structure of files and directories for the given path like the `tree` command of cmd.
+
+Its name is derived from the word *Spot* that means to see or to detect something.
 ### Download
 [Download](https://github.com/mahozad/espot/releases/download/v1.0/Espot.zip) the latest version or see all the releases [here](https://github.com/mahozad/espot/releases).
