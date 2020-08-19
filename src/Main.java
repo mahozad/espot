@@ -15,9 +15,11 @@ public class Main {
 
     // TODO: make gui for the app
     // Box drawing: '─' '┌' '┐' '└' '┘' '│' '┼' '├' '┤' '┬' '┴'
+
     // Multiline parenthesis: '⎛' '⎜' '⎝' '⎞' '⎟' '⎠'
     // Multiline bracket: '⎡' '⎢' '⎣' '⎤' '⎥' '⎦'
     // Multiline brace: '⎧' '⎨' '⎩' '⎫' '⎬' '⎭'
+    // See https://en.wikipedia.org/wiki/Bracket#Encoding_in_digital_media
     private static final String CONTINUED_BRANCH = "├─── ";
     private static final String END_BRANCH = "└─── ";
     private static final String TAB = "   ";
